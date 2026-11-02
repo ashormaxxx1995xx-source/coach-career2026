@@ -1,0 +1,62 @@
+name: Build Coach Career APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+
+      - name: Extract Game
+        run: |
+          ZIP=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+          test -n "$ZIP"
+          mkdir appsrc
+          unzip -q "$ZIP" -d appsrc
+
+      - name: Prepare Android
+        run: |
+          cd appsrc
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.coachcareer.game",
+            "appName": "مسيرة المدرب",
+            "webDir": "dist"
+          }
+          EOF
+          npm install
+          npm install @capacitor/core @capacitor/android
+          npm install -D @capacitor/cli
+          npm run build
+          npx cap add android
+          npx cap sync android
+
+      - name: Build APK
+        run: |
+          cd appsrc/android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coach-Career-APK
+          path: appsrc/android/app/build/outputs/apk/debug/app-debug.apk
